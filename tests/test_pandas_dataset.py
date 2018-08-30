@@ -932,7 +932,7 @@ class TestPandasDataset(unittest.TestCase):
         self.assertIsInstance(sub1, ge.dataset.PandasDataset)
         self.assertEqual(sub1.find_expectations(), exp1)
 
-    def test_subclass_pandas_subset_retains_subclass(self):
+    def test_subclass_pandas_subset_retains_subclass():
         """A subclass of PandasDataset should still be that subclass after a Pandas subsetting operation"""
         class CustomPandasDataset(ge.dataset.PandasDataset):
 
@@ -954,7 +954,7 @@ class TestPandasDataset(unittest.TestCase):
         })
 
         df2 = df.sample(frac=0.5)
-        self.assertTrue(type(df2) == type(df))
+        assert type(df2) == type(df)
 
 
 def test_pandas_deepcopy():

@@ -13,12 +13,12 @@ import numpy as np
 import pandas as pd
 from dateutil.parser import parse
 from scipy import stats
-from six import integer_types, string_types
+from six import PY3, integer_types, string_types
 
 from .base import Dataset
-from .util import DocInherit, recursively_convert_to_json_serializable, \
+from .util import DocInherit, \
         is_valid_partition_object, is_valid_categorical_partition_object, is_valid_continuous_partition_object, \
-        infer_distribution_parameters, _scipy_distribution_positional_args_from_dict, validate_distribution_parameters,\
+        _scipy_distribution_positional_args_from_dict, validate_distribution_parameters,\
         parse_result_format, create_multiple_expectations
 
 
@@ -48,8 +48,12 @@ class MetaPandasDataset(Dataset):
         See :func:`column_map_expectation <great_expectations.Dataset.base.Dataset.column_map_expectation>` \
         for full documentation of this function.
         """
+        if PY3:
+            argspec = inspect.getfullargspec(func)[0][1:]
+        else:
+            argspec = inspect.getargspec(func)[0][1:]
 
-        @cls.expectation(inspect.getargspec(func)[0][1:])
+        @cls.expectation(argspec)
         @wraps(func)
         def inner_wrapper(self, column, mostly=None, result_format=None, *args, **kwargs):
 
@@ -62,7 +66,7 @@ class MetaPandasDataset(Dataset):
             ignore_values = [None, np.nan]
             if func.__name__ in ['expect_column_values_to_not_be_null', 'expect_column_values_to_be_null']:
                 ignore_values = []
-        
+
             series = self[column]
 
             # FIXME rename to mapped_ignore_values?
@@ -79,7 +83,7 @@ class MetaPandasDataset(Dataset):
             nonnull_count = int((boolean_mapped_null_values==False).sum())
 
             boolean_mapped_success_values = func(self, nonnull_values, *args, **kwargs)
-            success_count = boolean_mapped_success_values.sum()
+            success_count = np.count_nonzero(boolean_mapped_success_values)
 
             unexpected_list = list(nonnull_values[boolean_mapped_success_values==False])
             unexpected_index_list = list(nonnull_values[boolean_mapped_success_values==False].index)
@@ -113,8 +117,12 @@ class MetaPandasDataset(Dataset):
         The column_pair_map_expectation decorator handles boilerplate issues surrounding the common pattern of evaluating
         truthiness of some condition on a per row basis across a pair of columns.
         """
+        if PY3:
+            argspec = inspect.getfullargspec(func)[0][1:]
+        else:
+            argspec = inspect.getargspec(func)[0][1:]
 
-        @cls.expectation(inspect.getargspec(func)[0][1:])
+        @cls.expectation(argspec)
         @wraps(func)
         def inner_wrapper(self, column_A, column_B, mostly=None, ignore_row_if="both_values_are_missing", result_format=None, *args, **kwargs):
 
@@ -136,9 +144,9 @@ class MetaPandasDataset(Dataset):
             assert len(series_A) == len(series_B), "Series A and B must be the same length"
 
             #This next bit only works if series_A and _B are the same length
-            element_count = int(len(series_A)) 
+            element_count = int(len(series_A))
             nonnull_count = (boolean_mapped_null_values==False).sum()
-            
+
             nonnull_values_A = series_A[boolean_mapped_null_values==False]
             nonnull_values_B = series_B[boolean_mapped_null_values==False]
             nonnull_values = [value_pair for value_pair in zip(
@@ -180,7 +188,12 @@ class MetaPandasDataset(Dataset):
         See :func:`column_aggregate_expectation <great_expectations.Dataset.base.Dataset.column_aggregate_expectation>` \
         for full documentation of this function.
         """
-        @cls.expectation(inspect.getargspec(func)[0][1:])
+        if PY3:
+            argspec = inspect.getfullargspec(func)[0][1:]
+        else:
+            argspec = inspect.getargspec(func)[0][1:]
+
+        @cls.expectation(argspec)
         @wraps(func)
         def inner_wrapper(self, column, result_format = None, *args, **kwargs):
 
@@ -455,17 +468,17 @@ class PandasDataset(MetaPandasDataset, pd.DataFrame):
 
     @DocInherit
     @MetaPandasDataset.column_map_expectation
-    def expect_column_values_to_be_in_set(self, column, values_set,
+    def expect_column_values_to_be_in_set(self, column, value_set,
                                           mostly=None,
                                           result_format=None, include_config=False, catch_exceptions=None, meta=None):
-        return column.map(lambda x: x in values_set)
+        return column.map(lambda x: x in value_set)
 
     @DocInherit
     @MetaPandasDataset.column_map_expectation
-    def expect_column_values_to_not_be_in_set(self, column, values_set,
+    def expect_column_values_to_not_be_in_set(self, column, value_set,
                                               mostly=None,
                                               result_format=None, include_config=False, catch_exceptions=None, meta=None):
-        return column.map(lambda x: x not in values_set)
+        return column.map(lambda x: x not in value_set)
 
     @DocInherit
     @MetaPandasDataset.column_map_expectation
@@ -1353,7 +1366,7 @@ class PandasDataset(MetaPandasDataset, pd.DataFrame):
         #FIXME
         if allow_cross_type_comparisons==True:
             raise NotImplementedError
-        
+
         if parse_strings_as_datetimes:
             temp_column_A = column_A.map(parse)
             temp_column_B = column_B.map(parse)
@@ -1385,12 +1398,12 @@ class PandasDataset(MetaPandasDataset, pd.DataFrame):
                 a = None
             else:
                 a = t["A"]
-                
+
             if pd.isnull(t["B"]):
                 b = None
             else:
                 b = t["B"]
-                
+
             results.append((a, b) in value_pairs_set)
 
         return pd.Series(results, temp_df.index)

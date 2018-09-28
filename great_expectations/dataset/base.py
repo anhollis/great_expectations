@@ -5,7 +5,7 @@ import copy
 from functools import wraps
 import traceback
 import warnings
-from six import string_types
+from six import PY3, string_types
 from collections import namedtuple
 
 from collections import (
@@ -91,8 +91,13 @@ class Dataset(object):
                 else:
                     meta = None
 
-                # This intends to get the signature of the inner wrapper, if there is one.
-                if "result_format" in inspect.getargspec(func)[0][1:]:
+                # Get the signature of the inner wrapper:
+                if PY3:
+                    argspec = inspect.getfullargspec(func)[0][1:]
+                else:
+                    argspec = inspect.getargspec(func)[0][1:]
+
+                if "result_format" in argspec:
                     all_args["result_format"] = result_format
                 else:
                     if "result_format" in all_args:
@@ -588,11 +593,16 @@ class Dataset(object):
         suppress_warnings=False
     ):
         """Returns _expectation_config as a JSON object, and perform some cleaning along the way.
+
         Args:
-            discard_failed_expectations=True     : Only include expectations with success_on_last_run=True in the exported config.
-            discard_result_format_kwargs=True    : In returned expectation objects, suppress the `result_format` parameter.
-            discard_include_configs_kwargs=True  : In returned expectation objects, suppress the `include_configs` parameter.
-            discard_catch_exceptions_kwargs=True : In returned expectation objects, suppress the `catch_exceptions` parameter.
+            discard_failed_expectations (boolean): \
+                Only include expectations with success_on_last_run=True in the exported config.  Defaults to `True`.
+            discard_result_format_kwargs (boolean): \
+                In returned expectation objects, suppress the `result_format` parameter. Defaults to `True`.
+            discard_include_configs_kwargs (boolean): \
+                In returned expectation objects, suppress the `include_configs` parameter. Defaults to `True`.
+            discard_catch_exceptions_kwargs (boolean): \
+                In returned expectation objects, suppress the `catch_exceptions` parameter.  Defaults to `True`.
 
         Returns:
             An expectation config.
@@ -775,6 +785,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
            Raises:
                AttributeError - if 'catch_exceptions'=None and an expectation throws an AttributeError
         """
+
         results = []
 
         if expectations_config is None:
@@ -1033,7 +1044,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
             # percent_success = float(success_count)/nonnull_count
             percent_success = success_count / nonnull_count
 
-            if mostly:
+            if mostly != None:
                 success = bool(percent_success >= mostly)
 
             else:
@@ -1065,7 +1076,12 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
             Check out :ref:`custom_expectations` for more information.
         """
 
-        new_function = self.expectation(inspect.getargspec(function)[0][1:])(function)
+        if PY3:
+            argspec = inspect.getfullargspec(function)[0][1:]
+        else:
+            argspec = inspect.getargspec(function)[0][1:]
+
+        new_function = self.expectation(argspec)(function)
         return new_function(self, *args, **kwargs)
 
     def test_column_map_expectation_function(self, function, *args, **kwargs):
@@ -1113,7 +1129,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
     ##### Table shape expectations #####
 
     def expect_column_to_exist(
-            self, column, column_index=None, result_format=None, include_config=False, 
+            self, column, column_index=None, result_format=None, include_config=False,
             catch_exceptions=None, meta=None
         ):
         """Expect the specified column to exist.
@@ -1524,7 +1540,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
 
     def expect_column_values_to_be_in_set(self,
         column,
-        values_set,
+        value_set,
         mostly=None,
         result_format=None, include_config=False, catch_exceptions=None, meta=None
     ):
@@ -1556,7 +1572,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
         Args:
             column (str): \
                 The column name.
-            values_set (set-like): \
+            value_set (set-like): \
                 A set of objects used for comparison.
 
         Keyword Args:
@@ -1591,7 +1607,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
 
     def expect_column_values_to_not_be_in_set(self,
         column,
-        values_set,
+        value_set,
         mostly=None,
         result_format=None, include_config=False, catch_exceptions=None, meta=None
     ):
@@ -1622,7 +1638,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
         Args:
             column (str): \
                 The column name.
-            values_set (set-like): \
+            value_set (set-like): \
                 A set of objects used for comparison.
 
         Keyword Args:
@@ -2841,7 +2857,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
     ):
         """Expect the column max to be between an min and max value
 
-        expect_column_sum_to_be_between is a :func:`column_aggregate_expectation <great_expectations.dataset.base.Dataset.column_aggregate_expectation>`.
+        expect_column_max_to_be_between is a :func:`column_aggregate_expectation <great_expectations.dataset.base.Dataset.column_aggregate_expectation>`.
 
         Args:
             column (str): \
@@ -3168,7 +3184,7 @@ If you wish to change this behavior, please set discard_failed_expectations, dis
             column_B (str): The second column name
 
         Keyword Args:
-            ignore_row_if (str): "both_values_are_missing", "either_value_is_missing", "neither
+            ignore_row_if (str): "both_values_are_missing", "either_value_is_missing", "neither"
 
         Other Parameters:
             result_format (str or None): \
